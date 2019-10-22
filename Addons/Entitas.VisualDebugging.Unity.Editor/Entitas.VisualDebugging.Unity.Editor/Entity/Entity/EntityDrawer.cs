@@ -6,6 +6,7 @@ using DesperateDevs.Unity.Editor;
 using DesperateDevs.Utils;
 using UnityEditor;
 using UnityEngine;
+using System.ComponentModel;
 
 namespace Entitas.VisualDebugging.Unity.Editor
 {
@@ -247,8 +248,25 @@ namespace Entitas.VisualDebugging.Unity.Editor
             }
         }
 
-        public static bool DrawObjectMember(Type memberType, string memberName, object value, object target, Action<object, object> setValue)
+        public class Depth
         {
+            public int value = 0;
+        }
+
+        public static bool DrawObjectMember(Type memberType, string memberName, object value, object target, Action<object, object> setValue, Depth depth = null)
+        {
+            if (depth == null)
+            {
+                depth = new Depth();
+            }
+
+            depth.value++;
+
+            if (depth.value >= 50)
+            {
+                return false;
+            }
+
             if (value == null)
             {
                 EditorGUI.BeginChangeCheck();
@@ -309,9 +327,15 @@ namespace Entitas.VisualDebugging.Unity.Editor
                         {
                             foreach (var info in memberType.GetPublicMemberInfos())
                             {
+                                if (info.attributes.Length > 0 
+                                    && info.attributes[0].attribute.GetType().FullName == "System.ComponentModel.EditorBrowsableAttribute")
+                                {
+                                    continue;
+                                }
+
                                 var mValue = info.GetValue(value);
                                 var mType = mValue == null ? info.type : mValue.GetType();
-                                DrawObjectMember(mType, info.name, mValue, value, info.SetValue);
+                                DrawObjectMember(mType, info.name, mValue, value, info.SetValue, depth);
                                 if (memberType.IsValueType)
                                 {
                                     setValue(target, value);
